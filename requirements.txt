@@ -1,0 +1,25 @@
+# Requirements esensial untuk proyek Heart Disease dan Deployment Streamlit
+
+# Data Manipulation & Analysis
+numpy==2.1.3
+pandas==2.2.3
+
+# Machine Learning & Imbalanced Data Handling
+scikit-learn==1.6.1
+imbalanced-learn==0.14.0
+joblib==1.4.2
+
+# Deployment Framework (Streamlit)
+streamlit==1.44.1
+
+# Visualisasi (Sering digunakan dan kompatibel dengan Streamlit)
+matplotlib==3.10.0
+seaborn==0.13.2
+plotly==6.1.1
+altair==5.5.0
+
+# Dependencies lain yang sering dibutuhkan oleh paket di atas
+scipy==1.15.2
+packaging==24.2
+pillow==11.1.0
+requests==2.32.3
