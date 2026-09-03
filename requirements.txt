@@ -23,3 +23,12 @@ scipy==1.15.2
 packaging==24.2
 pillow==11.1.0
 requests==2.32.3
+
+# MLOps & Testing
+mlflow
+pytest
+
+# XAI & GenAI
+shap
+google-generativeai
+python-dotenv

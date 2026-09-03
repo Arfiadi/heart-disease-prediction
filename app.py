@@ -4,6 +4,10 @@ import numpy as np
 import pickle
 import time
 from PIL import Image
+import shap
+import matplotlib.pyplot as plt
+from src.services.llm_advisor import get_lifestyle_recommendation
+
 
 # Fungsi untuk memuat model dan scaler (dicache agar lebih cepat)
 @st.cache_resource
@@ -113,6 +117,52 @@ def page_prediksi():
             st.error('**Pasien diprediksi menderita penyakit jantung.**', icon="💔")
         else:
             st.success('**Pasien diprediksi tidak menderita penyakit jantung.**', icon="❤️")
+            
+        st.divider()
+        
+        # --- SHAP XAI ---
+        st.subheader("Analisis Faktor Risiko (Explainable AI)")
+        st.write("Grafik di bawah ini menunjukkan faktor mana yang paling berkontribusi terhadap hasil prediksi (semakin ke kanan/merah semakin berisiko).")
+        try:
+            explainer = shap.TreeExplainer(model)
+            std_data = scaler.transform(np.asarray(input_data).reshape(1, -1))
+            shap_values = explainer.shap_values(std_data)
+            
+            if isinstance(shap_values, list):
+                sv = shap_values[1][0]
+            elif len(shap_values.shape) == 3:
+                sv = shap_values[0, :, 1]
+            else:
+                sv = shap_values[0]
+            sv = np.ravel(sv)
+                
+            feature_names = ['cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age']
+            fig, ax = plt.subplots(figsize=(8, 4))
+            sorted_idx = np.argsort(sv)
+            sorted_features = [feature_names[i] for i in sorted_idx]
+            sorted_sv = sv[sorted_idx]
+            colors = ['#ff4b4b' if v > 0 else '#32cd32' for v in sorted_sv]
+            
+            ax.barh(sorted_features, sorted_sv, color=colors)
+            ax.set_title('Kontribusi Setiap Fitur Medis terhadap Prediksi')
+            ax.set_xlabel('SHAP Value (Risiko)')
+            st.pyplot(fig)
+        except Exception as e:
+            st.warning(f"Gagal memuat visualisasi XAI: {e}")
+            
+        st.divider()
+        
+        # --- GenAI ---
+        st.subheader("Saran Gaya Hidup (Generative AI)")
+        with st.spinner("AI sedang menganalisis saran khusus untuk Anda..."):
+            patient_data_dict = {
+                'age': age,
+                'sex': sex,
+                'thalach': thalach,
+                'cp': cp
+            }
+            recommendation = get_lifestyle_recommendation(patient_data_dict, prediction)
+            st.info(recommendation)
 
 def page_detail_proyek():
     st.title("Detail dan Metodologi Proyek")
