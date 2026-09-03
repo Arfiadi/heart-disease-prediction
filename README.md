@@ -1,4 +1,4 @@
-# Heart Disease Prediction System (2026 Standout Portfolio)
+# Heart Disease Prediction System
 
 🔗 **Access the live app here:** [Prediksi Penyakit Jantung](https://arfi-heartdiseasepredict.streamlit.app/)
 
