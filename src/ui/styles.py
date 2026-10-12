@@ -84,6 +84,57 @@ html, body, [class*="css"] {
     padding: 16px 20px;
     margin: 16px 0;
 }
+
+/* Prevent text truncation in Selectbox inputs & Dropdown menus */
+div[data-baseweb="select"] {
+    width: 100% !important;
+}
+
+div[data-baseweb="select"] > div {
+    min-height: 44px !important;
+    height: auto !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] [role="button"],
+div[data-baseweb="select"] [aria-selected="true"],
+div[data-baseweb="select"] [data-testid="stMarkdownContainer"] p {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    text-overflow: unset !important;
+    overflow: visible !important;
+    line-height: 1.35 !important;
+}
+
+div[data-baseweb="popover"] {
+    max-width: 95vw !important;
+}
+
+ul[data-baseweb="menu"],
+ul[role="listbox"] {
+    min-width: 100% !important;
+    width: max-content !important;
+    max-width: 580px !important;
+}
+
+ul[data-baseweb="menu"] li,
+ul[role="listbox"] li,
+ul[data-baseweb="menu"] li div,
+ul[role="listbox"] li div,
+ul[data-baseweb="menu"] [role="option"] {
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    text-overflow: unset !important;
+    overflow: visible !important;
+    line-height: 1.4 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
 </style>
 """
 

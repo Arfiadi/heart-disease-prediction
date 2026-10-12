@@ -263,10 +263,10 @@ def page_prediksi():
 
     # --- STRUCTURED MEDICAL INPUT FORM ---
     with st.form("clinical_intake_form"):
-        col_sec1, col_sec2, col_sec3 = st.columns(3)
+        col_sec1, col_sec2 = st.columns(2)
 
         with col_sec1:
-            st.markdown("#### 👤 1. Profil Demografi")
+            st.markdown("#### 👤 1. Profil Demografi & Gejala Angina")
             current_age = st.session_state.profile_input['age']
             age = st.slider('Usia Pasien (age)', 29, 77, current_age, help="Usia pasien dalam tahun.")
 
@@ -274,8 +274,6 @@ def page_prediksi():
             sex_idx = list(sex_options.keys()).index(current_sex) if current_sex in sex_options else 0
             sex = st.radio('Jenis Kelamin (sex)', list(sex_options.keys()), index=sex_idx, horizontal=True)
 
-        with col_sec2:
-            st.markdown("#### 💓 2. Gejala & Tanda Vital")
             current_cp = st.session_state.profile_input['cp']
             cp_idx = list(cp_options.keys()).index(current_cp) if current_cp in cp_options else 0
             cp = st.selectbox('Karakteristik Nyeri Dada (cp)', list(cp_options.keys()), index=cp_idx, help="Jenis nyeri dada klinis.")
@@ -287,8 +285,8 @@ def page_prediksi():
             exang_idx = list(exang_options.keys()).index(current_exang) if current_exang in exang_options else 1
             exang = st.selectbox('Nyeri Dada Akibat Olahraga (exang)', list(exang_options.keys()), index=exang_idx, help="Apakah angina timbul saat latihan fisik?")
 
-        with col_sec3:
-            st.markdown("#### 📈 3. Uji EKG & Diagnostik")
+        with col_sec2:
+            st.markdown("#### 📈 2. Uji EKG & Diagnostik Laboratorium")
             current_oldpeak = float(st.session_state.profile_input['oldpeak'])
             oldpeak = st.slider('Depresi Segmen ST EKG (oldpeak)', 0.0, 6.2, current_oldpeak, step=0.1, help="Penurunan ST segmen saat latihan dibanding istirahat.")
 
