@@ -16,13 +16,13 @@
 Cardiovascular disease is the leading cause of mortality worldwide. This project builds an end-to-end **Clinical Decision Support System (CDSS)** to screen and estimate heart disease risk from routine diagnostic measurements.
 
 ### Key System Highlights
-- 🔄 **Modular ML Pipeline**: Complete separation of ETL, outlier filtering, feature scaling, and multi-model training in `src/`.
-- 📊 **Rigor & 5-Fold Stratified Cross-Validation**: Prevents *lucky splits* and guarantees robust generalization across folds.
+- 🔄 **End-to-End Scikit-Learn Pipeline**: Enkapsulasi atomik `StandardScaler` dan *estimator* (`sklearn.pipeline.Pipeline`) yang secara ketat mencegah *data leakage* pada 5-Fold Stratified Cross-Validation dan produksi.
+- 📊 **Rigor & 5-Fold Stratified Cross-Validation**: Validasi silang bebas kebocoran data untuk menjamin kestabilan generalisasi pada unseen data.
 - 🏆 **Multi-Model Comparison**: Evaluates 4 distinct algorithmic paradigms (Linear, Decision Tree, Neural Network / MLP, and Tuned Random Forest) tracked with **MLflow**.
 - 🔍 **Explainable AI (XAI)**: Demystifies black-box predictions using **SHAP (SHapley Additive exPlanations)** and Gini Feature Importance.
 - 🤖 **AI Lifestyle Advisor with Graceful Fallback**: Personalized lifestyle recommendations powered by the **Google Gemini API**, with an automatic clinical rule-based fallback when offline.
 - 🌐 **Interactive Streamlit App**: Live multi-page dashboard featuring interactive EDA, confusion matrix heatmaps, and ROC curves.
-- 🧪 **Comprehensive Testing (CI/CD)**: 7 automated unit tests with quality thresholds (`Accuracy >= 0.75`, `ROC-AUC >= 0.80`), Ruff linting, and Docker container build validation.
+- 🧪 **Comprehensive Testing (CI/CD)**: 14 automated unit tests with quality thresholds (`Accuracy >= 0.75`, `ROC-AUC >= 0.80`), Pipeline integrity checks, Ruff linting, and Docker container build validation.
 
 ---
 
@@ -166,12 +166,12 @@ python -m src.models.train_model
 ```
 Trains Logistic Regression, Decision Tree, MLP Neural Network, and Tuned Random Forest, logging metrics and artifacts to MLflow.
 
-### Run Automated Unit Tests (12 Tests):
+### Run Automated Unit Tests (14 Tests):
 ```bash
 pytest tests/ -v
 ```
 Test suite validates:
-- **Data & Model (7 Tests)**:
+- **Data & Model (9 Tests)**:
   - Pipeline integrity & IQR outlier filtering
   - Scaler normalization properties
   - Production artifact loading
@@ -179,6 +179,8 @@ Test suite validates:
   - **Quality Gate Threshold**: Ensures `Accuracy >= 0.75` and `ROC-AUC >= 0.80`
   - Edge case boundary inputs
   - LLM advisor clinical fallback resilience
+  - **Pipeline Architecture**: Validates `sklearn.pipeline.Pipeline` with `scaler` and `classifier` steps
+  - **Direct Pipeline Inference**: Validates atomic end-to-end inference directly on unscaled features
 - **UI Components & Reporting (5 Tests)**:
   - Medical CSS design tokens & class integrity
   - Plotly risk speedometer gauge rendering

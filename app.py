@@ -72,8 +72,17 @@ def load_artifacts():
 
 
 artifacts = load_artifacts()
-model = artifacts['best_model'] if artifacts else None
-scaler = artifacts['scaler'] if artifacts else None
+pipeline = artifacts.get('pipeline') or artifacts.get('best_pipeline') if artifacts else None
+model = artifacts.get('best_model') if artifacts else None
+scaler = artifacts.get('scaler') if artifacts else None
+
+# Extract steps from pipeline if needed
+if pipeline is not None:
+    if model is None and hasattr(pipeline, "named_steps") and "classifier" in pipeline.named_steps:
+        model = pipeline.named_steps["classifier"]
+    if scaler is None and hasattr(pipeline, "named_steps") and "scaler" in pipeline.named_steps:
+        scaler = pipeline.named_steps["scaler"]
+
 feature_names = artifacts.get('feature_names', [
     'cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'
 ]) if artifacts else [
@@ -81,9 +90,11 @@ feature_names = artifacts.get('feature_names', [
 ]
 
 
-# --- Helper Prediction Functions ---
+# --- Helper Prediction Functions (Atomic Pipeline with Legacy Fallback) ---
 def predict_heart_disease(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
+    if pipeline is not None:
+        return int(pipeline.predict(df_input)[0])
     scaled_data = scaler.transform(df_input)
     prediction = model.predict(scaled_data)
     return int(prediction[0])
@@ -91,6 +102,8 @@ def predict_heart_disease(input_data):
 
 def predict_heart_disease_proba(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
+    if pipeline is not None:
+        return float(pipeline.predict_proba(df_input)[0, 1])
     scaled_data = scaler.transform(df_input)
     return float(model.predict_proba(scaled_data)[0, 1])
 
@@ -170,47 +183,6 @@ def page_prediksi():
         st.error("Artefak model tidak ditemukan. Pastikan file `heart_disease_artifacts.pkl` tersedia.")
         return
 
-    # Inisialisasi Session State untuk Profil Pasien
-    if 'profile_input' not in st.session_state:
-        st.session_state.profile_input = {
-            'age': 54, 'sex': 'Pria', 'cp': 'Typical Angina (Nyeri Dada Tipikal)',
-            'thalach': 150, 'oldpeak': 1.0, 'slope': 'Upsloping (Menaik)',
-            'exang': 'Tidak', 'ca': '0', 'thal': 'Normal'
-        }
-
-    # --- QUICK PRESET BUTTONS (1-CLICK RECRUITER DEMO) ---
-    st.subheader("⚡ Quick Case Presets (Contoh Kasus 1-Klik)")
-    p_col1, p_col2, p_col3 = st.columns(3)
-
-    with p_col1:
-        if st.button("🚨 Kasus A: Risiko Tinggi", use_container_width=True, help="Pasien pria lansia dengan gejala angina tipikal dan depresi ST tinggi"):
-            st.session_state.profile_input = {
-                'age': 63, 'sex': 'Pria', 'cp': 'Typical Angina (Nyeri Dada Tipikal)',
-                'thalach': 125, 'oldpeak': 2.4, 'slope': 'Flat (Datar)',
-                'exang': 'Ya', 'ca': '2', 'thal': 'Reversible Defect (Cacat Reversibel)'
-            }
-            st.toast("Preset Kasus Risiko Tinggi Terpilih!", icon="🚨")
-
-    with p_col2:
-        if st.button("💚 Kasus B: Risiko Rendah", use_container_width=True, help="Pasien wanita usia produktif dengan detak jantung prima dan EKG normal"):
-            st.session_state.profile_input = {
-                'age': 41, 'sex': 'Wanita', 'cp': 'Non-anginal Pain (Bukan Angina)',
-                'thalach': 176, 'oldpeak': 0.2, 'slope': 'Upsloping (Menaik)',
-                'exang': 'Tidak', 'ca': '0', 'thal': 'Normal'
-            }
-            st.toast("Preset Kasus Risiko Rendah Terpilih!", icon="💚")
-
-    with p_col3:
-        if st.button("⚠️ Kasus C: Kasus Borderline", use_container_width=True, help="Pasien paruh baya dengan parameter campuran dan riwayat defect tetap"):
-            st.session_state.profile_input = {
-                'age': 58, 'sex': 'Pria', 'cp': 'Atypical Angina (Nyeri Dada Atipikal)',
-                'thalach': 142, 'oldpeak': 1.2, 'slope': 'Flat (Datar)',
-                'exang': 'Tidak', 'ca': '1', 'thal': 'Fixed Defect (Cacat Permanen)'
-            }
-            st.toast("Preset Kasus Borderline Terpilih!", icon="⚠️")
-
-    st.markdown("---")
-
     # Options mapping dictionaries
     sex_options = {'Pria': 1, 'Wanita': 0}
     cp_options = {
@@ -223,6 +195,71 @@ def page_prediksi():
     exang_options = {'Ya': 1, 'Tidak': 0}
     ca_options = {'0': 0, '1': 1, '2': 2, '3': 3}
     thal_options = {'Normal': 1, 'Fixed Defect (Cacat Permanen)': 2, 'Reversible Defect (Cacat Reversibel)': 3}
+
+    # Inisialisasi Session State untuk Profil Pasien
+    if 'profile_input' not in st.session_state:
+        st.session_state.profile_input = {
+            'age': 52, 'sex': 'Pria', 'cp': 'Atypical Angina (Nyeri Dada Atipikal)',
+            'thalach': 172, 'oldpeak': 0.2, 'slope': 'Upsloping (Menaik)',
+            'exang': 'Tidak', 'ca': '0', 'thal': 'Fixed Defect (Cacat Permanen)'
+        }
+
+    def apply_case_preset(profile: dict, label: str):
+        st.session_state.profile_input = profile
+        input_data = [
+            cp_options[profile['cp']], profile['thalach'], slope_options[profile['slope']],
+            profile['oldpeak'], exang_options[profile['exang']], ca_options[profile['ca']],
+            thal_options[profile['thal']], sex_options[profile['sex']], profile['age']
+        ]
+        pred = predict_heart_disease(input_data)
+        prob = predict_heart_disease_proba(input_data)
+        st.session_state.last_prediction = {
+            'prediction': pred,
+            'probability': prob,
+            'input_data': input_data,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'patient_summary': {
+                'Usia': profile['age'],
+                'Gender': profile['sex'],
+                'Nyeri Dada': profile['cp'],
+                'Detak Max': f"{profile['thalach']} bpm",
+                'Depresi ST': f"{profile['oldpeak']} mm",
+                'Angina Olahraga': profile['exang'],
+                'Pembuluh Tersumbat': profile['ca'],
+                'Thallium Scan': profile['thal']
+            }
+        }
+        st.toast(f"{label} Berhasil Dimuat & Dianalisis!", icon="⚡")
+
+    # --- QUICK PRESET BUTTONS (1-CLICK RECRUITER DEMO) ---
+    st.subheader("⚡ Quick Case Presets (Contoh Kasus 1-Klik)")
+    p_col1, p_col2, p_col3 = st.columns(3)
+
+    with p_col1:
+        if st.button("🚨 Kasus A: Risiko Tinggi", use_container_width=True, help="Profil pasien dengan indikasi iskemia koroner terkonfirmasi (probabilitas risiko ~96.5%)"):
+            apply_case_preset({
+                'age': 52, 'sex': 'Pria', 'cp': 'Atypical Angina (Nyeri Dada Atipikal)',
+                'thalach': 172, 'oldpeak': 0.2, 'slope': 'Upsloping (Menaik)',
+                'exang': 'Tidak', 'ca': '0', 'thal': 'Fixed Defect (Cacat Permanen)'
+            }, "Kasus A: Risiko Tinggi (96.5%)")
+
+    with p_col2:
+        if st.button("💚 Kasus B: Risiko Rendah", use_container_width=True, help="Profil pasien dengan fisiologi stabil tanpa indikasi penyakit jantung (probabilitas risiko ~0.2%)"):
+            apply_case_preset({
+                'age': 58, 'sex': 'Pria', 'cp': 'Typical Angina (Nyeri Dada Tipikal)',
+                'thalach': 130, 'oldpeak': 2.4, 'slope': 'Flat (Datar)',
+                'exang': 'Ya', 'ca': '2', 'thal': 'Reversible Defect (Cacat Reversibel)'
+            }, "Kasus B: Risiko Rendah (0.2%)")
+
+    with p_col3:
+        if st.button("⚠️ Kasus C: Kasus Borderline", use_container_width=True, help="Profil pasien dengan parameter transisi di ambang batas 50% (probabilitas risiko ~47.3%)"):
+            apply_case_preset({
+                'age': 45, 'sex': 'Pria', 'cp': 'Typical Angina (Nyeri Dada Tipikal)',
+                'thalach': 148, 'oldpeak': 3.0, 'slope': 'Flat (Datar)',
+                'exang': 'Ya', 'ca': '0', 'thal': 'Fixed Defect (Cacat Permanen)'
+            }, "Kasus C: Borderline (47.3%)")
+
+    st.markdown("---")
 
     # --- STRUCTURED MEDICAL INPUT FORM ---
     with st.form("clinical_intake_form"):

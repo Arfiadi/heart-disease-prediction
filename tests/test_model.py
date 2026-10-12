@@ -146,3 +146,39 @@ def test_llm_advisor_fallback():
     rec = get_lifestyle_recommendation(patient_data, prediction_result=1)
     assert isinstance(rec, str)
     assert len(rec) > 50
+
+
+def test_pipeline_architecture():
+    """
+    Ensure serialized artifacts contain a valid scikit-learn Pipeline
+    with scaler and classifier steps.
+    """
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    with open("heart_disease_artifacts.pkl", "rb") as f:
+        artifacts = pickle.load(f)
+    assert "pipeline" in artifacts or "best_pipeline" in artifacts, "Artifact missing pipeline key"
+    pipeline = artifacts.get("pipeline") or artifacts.get("best_pipeline")
+    assert isinstance(pipeline, Pipeline), "Pipeline object is not an instance of sklearn.pipeline.Pipeline"
+    assert "scaler" in pipeline.named_steps, "Pipeline missing 'scaler' step"
+    assert "classifier" in pipeline.named_steps, "Pipeline missing 'classifier' step"
+    assert isinstance(pipeline.named_steps["scaler"], StandardScaler), "Scaler step is not StandardScaler"
+
+
+def test_pipeline_direct_inference():
+    """
+    Verify pipeline executes atomic end-to-end inference directly on raw unscaled features.
+    """
+    with open("heart_disease_artifacts.pkl", "rb") as f:
+        artifacts = pickle.load(f)
+    pipeline = artifacts.get("pipeline") or artifacts.get("best_pipeline")
+    feature_names = artifacts["feature_names"]
+    
+    # Raw unscaled sample DataFrame
+    sample_df = pd.DataFrame([[1, 172, 2, 0.2, 0, 0, 2, 1, 52]], columns=feature_names)
+    pred = pipeline.predict(sample_df)
+    proba = pipeline.predict_proba(sample_df)
+    
+    assert pred[0] in [0, 1], "Pipeline prediction must be binary (0 or 1)"
+    assert 0.0 <= proba[0, 1] <= 1.0, "Probability must be between 0 and 1"
