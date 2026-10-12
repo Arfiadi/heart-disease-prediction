@@ -31,9 +31,19 @@ htmlcov/
 *.swp
 *.swo
 
-# MacOS
-.DS_Store
+# Linters & Tools
+.ruff_cache/
 
-# Data / Artifacts (Opsional: Jika Anda tidak ingin mem-push data CSV atau model berukuran besar)
+# OS Specific
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Build & Distribution
+build/
+dist/
+*.egg-info/
+
+# Data / Artifacts (Optional local files)
 # heart.csv
 # heart_disease_artifacts.pkl

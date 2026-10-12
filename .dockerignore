@@ -1,0 +1,45 @@
+# Git & Version Control
+.git/
+.gitignore
+.gitattributes
+
+# Environment & Secrets (CRITICAL for security)
+.env
+.env.*
+!.env.example
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# MLOps & Experiment Tracking
+mlruns/
+mlruns.db
+
+# Jupyter Notebooks & Checkpoints
+notebooks/
+.ipynb_checkpoints/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Specific Files
+.DS_Store
+Thumbs.db

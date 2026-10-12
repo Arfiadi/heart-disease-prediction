@@ -16,7 +16,7 @@ from src.services.llm_advisor import get_lifestyle_recommendation
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARTIFACTS_PATH = os.path.join(BASE_DIR, 'heart_disease_artifacts.pkl')
 DATA_PATH = os.path.join(BASE_DIR, 'heart.csv')
-IMAGE_PATH = os.path.join(BASE_DIR, 'heart.jpg')
+IMAGE_PATH = os.path.join(BASE_DIR, 'assets', 'heart.jpg') if os.path.exists(os.path.join(BASE_DIR, 'assets', 'heart.jpg')) else os.path.join(BASE_DIR, 'heart.jpg')
 
 # --- Page Configuration ---
 st.set_page_config(

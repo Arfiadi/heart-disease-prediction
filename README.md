@@ -77,6 +77,9 @@ graph TD;
 heart-disease-prediction/
 ├── .github/workflows/
 │   └── ci.yml               # Automated CI: Ruff Linting, Pytest, & Docker Build
+├── assets/                  # Visual assets & medical platform diagrams
+│   ├── heart.jpg
+│   └── heart-disease.jpg
 ├── src/
 │   ├── __init__.py          # Root package marker
 │   ├── data/                # Data cleaning & IQR outlier filtering
@@ -97,9 +100,13 @@ heart-disease-prediction/
 ├── notebooks/
 │   ├── Cleaning, Preprocessing and EDA.ipynb
 │   └── modelling.ipynb
-├── app.py                   # Streamlit interactive application
+├── app.py                   # Streamlit Clinical Decision Support System
 ├── Dockerfile               # Production container definition
+├── .dockerignore            # Docker build ignore rules (security & build speed)
+├── .env.example             # Configuration template for Gemini API key
 ├── requirements.txt         # Pinned reproducible dependencies
+├── packages.txt             # Linux system libraries for deployment
+├── runtime.txt              # Deployment runtime specification (Python 3.11)
 ├── heart.csv                # Dataset
 └── heart_disease_artifacts.pkl # Serialized production artifacts
 ```
@@ -124,8 +131,9 @@ source .venv/bin/activate
 # Install pinned dependencies
 pip install -r requirements.txt
 
-# (Optional) Setup Google Gemini API Key in .env
-# GEMINI_API_KEY=your_key_here
+# (Optional) Setup Google Gemini API Key from template
+# Copy template and fill your API key:
+cp .env.example .env
 # Note: If no API key is provided, the app automatically uses the Clinical Rule Fallback!
 
 # Run Streamlit
