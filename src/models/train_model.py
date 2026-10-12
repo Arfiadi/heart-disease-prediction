@@ -8,6 +8,7 @@ import mlflow.sklearn
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import (
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def train_and_compare_models(data_path: str = "heart.csv", model_save_path: str = "heart_disease_artifacts.pkl"):
     """
-    Train and evaluate multiple models (Logistic Regression, Decision Tree, Random Forest)
+    Train and evaluate multiple models (Logistic Regression, Decision Tree, MLP Neural Network, Random Forest)
     using Stratified 5-Fold Cross-Validation and holdout test set.
     Logs all experiments to MLflow and serializes the best model along with rich evaluation artifacts.
     """
@@ -51,6 +52,10 @@ def train_and_compare_models(data_path: str = "heart.csv", model_save_path: str 
         "Decision_Tree": {
             "model": DecisionTreeClassifier(max_depth=4, random_state=42),
             "params": {"max_depth": 4, "criterion": "gini"}
+        },
+        "MLP_Neural_Network": {
+            "model": MLPClassifier(hidden_layer_sizes=(80,), activation="logistic", solver="adam", max_iter=1000, random_state=42),
+            "params": {"hidden_layer_sizes": (80,), "activation": "logistic", "solver": "adam", "max_iter": 1000}
         },
         "Random_Forest_Tuned": {
             "model": RandomForestClassifier(n_estimators=100, max_depth=5, min_samples_split=4, random_state=42),
@@ -114,7 +119,7 @@ def train_and_compare_models(data_path: str = "heart.csv", model_save_path: str 
     df_comparison = pd.DataFrame(comparison_records)
     logger.info("Model Comparison Summary:\n%s", df_comparison.to_string(index=False))
     
-    # Best model selection (Random Forest Tuned)
+    # Best model selection (Random Forest Tuned for Explainability & Stability)
     best_clf = trained_instances["Random_Forest_Tuned"]
     y_pred_best = best_clf.predict(X_test_scaled)
     y_prob_best = best_clf.predict_proba(X_test_scaled)[:, 1]

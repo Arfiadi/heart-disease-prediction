@@ -341,7 +341,7 @@ def page_detail_proyek():
     graph TD;
         A[Raw Data: UCI Heart Disease 1025 baris] --> B[src/data: Deduplikasi 288 baris & Filter IQR];
         B --> C[src/features: StandardScaler & 5-Fold Stratified Split];
-        C --> D[src/models: Multi-Model Training LR, DT, RF];
+        C --> D[src/models: Multi-Model Training LR, DT, MLP, RF];
         D <--> E[(MLflow Tracking: Runs, Hyperparams & Metrics)];
         D --> F[Serialized Artifacts: Model, Scaler, Evaluasi];
         F --> G[Streamlit Web Application];
