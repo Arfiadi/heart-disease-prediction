@@ -91,12 +91,18 @@ heart-disease-prediction/
 │   ├── models/              # Training, 5-Fold Stratified CV, & MLflow tracking
 │   │   ├── __init__.py
 │   │   └── train_model.py
-│   └── services/            # LLM advisor & clinical rule fallback engine
+│   ├── services/            # LLM advisor & clinical rule fallback engine
+│   │   ├── __init__.py
+│   │   └── llm_advisor.py
+│   └── ui/                  # Modular UI: design tokens, Plotly charts & reporting
 │       ├── __init__.py
-│       └── llm_advisor.py
+│       ├── styles.py        # Medical CSS styling system & banners
+│       ├── components.py    # Plotly figures (Risk Gauge, SHAP, CM, ROC, EDA)
+│       └── report.py        # Clinical screening summary report generator
 ├── tests/
 │   ├── __init__.py
-│   └── test_model.py        # 7 comprehensive unit tests with performance threshold
+│   ├── test_model.py        # 7 unit tests for data pipeline & model quality gate
+│   └── test_ui.py           # 5 unit tests for UI charts, CSS tokens & report export
 ├── notebooks/
 │   ├── Cleaning, Preprocessing and EDA.ipynb
 │   └── modelling.ipynb
@@ -160,18 +166,25 @@ python -m src.models.train_model
 ```
 Trains Logistic Regression, Decision Tree, MLP Neural Network, and Tuned Random Forest, logging metrics and artifacts to MLflow.
 
-### Run Automated Unit Tests (7 Tests):
+### Run Automated Unit Tests (12 Tests):
 ```bash
 pytest tests/ -v
 ```
 Test suite validates:
-- Data pipeline integrity & IQR outlier handling
-- Scaler normalization properties
-- Production artifact loading
-- Prediction binary constraints
-- **Quality Gate Threshold**: Ensures `Accuracy >= 0.75` and `ROC-AUC >= 0.80`
-- Edge case boundary inputs
-- LLM advisor clinical fallback resilience
+- **Data & Model (7 Tests)**:
+  - Pipeline integrity & IQR outlier filtering
+  - Scaler normalization properties
+  - Production artifact loading
+  - Prediction binary output formatting
+  - **Quality Gate Threshold**: Ensures `Accuracy >= 0.75` and `ROC-AUC >= 0.80`
+  - Edge case boundary inputs
+  - LLM advisor clinical fallback resilience
+- **UI Components & Reporting (5 Tests)**:
+  - Medical CSS design tokens & class integrity
+  - Plotly risk speedometer gauge rendering
+  - Plotly annotated confusion matrix generation
+  - ROC curve figure generation
+  - Clinical screening summary report text generator
 
 ---
 

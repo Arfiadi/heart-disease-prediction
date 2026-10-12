@@ -1,22 +1,41 @@
 import os
+import sys
 import time
 import pickle
 from datetime import datetime
 import numpy as np
 import pandas as pd
-import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
 from PIL import Image
-import shap
+import streamlit as st
+
+# Ensure project root is on sys.path for relative submodule resolution
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 from src.services.llm_advisor import get_lifestyle_recommendation
+from src.ui import (
+    apply_custom_styles,
+    render_system_banner,
+    plot_risk_gauge,
+    plot_shap_summary,
+    plot_model_comparison,
+    plot_confusion_matrix,
+    plot_roc_curve,
+    plot_feature_importance,
+    plot_eda_scatter,
+    plot_eda_bar,
+    generate_clinical_report,
+)
 
 # --- Base Directory & File Paths (Streamlit Cloud Safe) ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARTIFACTS_PATH = os.path.join(BASE_DIR, 'heart_disease_artifacts.pkl')
 DATA_PATH = os.path.join(BASE_DIR, 'heart.csv')
-IMAGE_PATH = os.path.join(BASE_DIR, 'assets', 'heart.jpg') if os.path.exists(os.path.join(BASE_DIR, 'assets', 'heart.jpg')) else os.path.join(BASE_DIR, 'heart.jpg')
+IMAGE_PATH = (
+    os.path.join(BASE_DIR, 'assets', 'heart.jpg')
+    if os.path.exists(os.path.join(BASE_DIR, 'assets', 'heart.jpg'))
+    else os.path.join(BASE_DIR, 'heart.jpg')
+)
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -26,90 +45,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Modern Medical CSS Design System ---
-CUSTOM_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+# --- Apply Medical Design System ---
+apply_custom_styles()
 
-html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-/* Card Elevation & Container Styles */
-.clinical-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.25s ease;
-}
-
-.clinical-card:hover {
-    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
-    border-color: #CBD5E1;
-}
-
-/* Top System Health Banner */
-.system-banner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-    color: #F8FAFC;
-    border-radius: 14px;
-    padding: 14px 20px;
-    margin-bottom: 24px;
-    font-size: 0.88rem;
-}
-
-.badge-pill {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 9999px;
-    font-weight: 600;
-    font-size: 0.76rem;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-}
-
-.badge-danger {
-    background-color: #FEE2E2;
-    color: #991B1B;
-    border: 1px solid #FCA5A5;
-}
-
-.badge-success {
-    background-color: #D1FAE5;
-    color: #065F46;
-    border: 1px solid #6EE7B7;
-}
-
-.badge-info {
-    background-color: #E0F2FE;
-    color: #075985;
-    border: 1px solid #7DD3FC;
-}
-
-.badge-warning {
-    background-color: #FEF3C7;
-    color: #92400E;
-    border: 1px solid #FCD34D;
-}
-
-/* Action Callout Box */
-.action-callout {
-    border-left: 4px solid #3B82F6;
-    background-color: #EFF6FF;
-    border-radius: 0 12px 12px 0;
-    padding: 16px 20px;
-    margin: 16px 0;
-}
-</style>
-"""
-st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # --- Artifact Loading ---
 @st.cache_resource
@@ -132,6 +70,7 @@ def load_artifacts():
                 return None
     return None
 
+
 artifacts = load_artifacts()
 model = artifacts['best_model'] if artifacts else None
 scaler = artifacts['scaler'] if artifacts else None
@@ -141,17 +80,20 @@ feature_names = artifacts.get('feature_names', [
     'cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'
 ]
 
-# Helper prediction functions
+
+# --- Helper Prediction Functions ---
 def predict_heart_disease(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
     scaled_data = scaler.transform(df_input)
     prediction = model.predict(scaled_data)
     return int(prediction[0])
 
+
 def predict_heart_disease_proba(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
     scaled_data = scaler.transform(df_input)
     return float(model.predict_proba(scaled_data)[0, 1])
+
 
 @st.cache_data(show_spinner=False)
 def cached_lifestyle_recommendation(age: int, sex: int, thalach: int, cp: str, prediction: int) -> str:
@@ -163,30 +105,15 @@ def cached_lifestyle_recommendation(age: int, sex: int, thalach: int, cp: str, p
     }
     return get_lifestyle_recommendation(patient_data_dict, prediction)
 
-# Helper function to render global status banner
-def render_system_banner():
-    st.markdown("""
-    <div class="system-banner">
-        <div>
-            <strong>🏥 Clinical Decision Support System (CDSS)</strong> • <em>Cardiovascular Screening Engine</em>
-        </div>
-        <div>
-            <span class="badge-pill badge-info">Random Forest Tuned (AUC 0.898)</span>
-            <span class="badge-pill badge-success">SHAP XAI: Active</span>
-            <span class="badge-pill badge-warning">Gemini AI / Fallback: Ready</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
-
-# --- PAGE 1: HOME / OVERVIEW ---
+# --- PAGE 1: RINGKASAN EKSEKUTIF & BERANDA ---
 def page_home():
     render_system_banner()
-    
-    st.title("🫀 Platform Skrining & Pendukung Keputusan Kardiovaskular")
+
+    st.title("🫀 Clinical Decision Support System: Skrining Penyakit Jantung")
     st.markdown("""
-    Selamat datang di **Clinical Decision Support System (CDSS)** untuk deteksi risiko penyakit jantung.
-    Sistem ini memadukan **Machine Learning multi-paradigma**, **Explainable AI (SHAP)**, dan **Generative AI** 
+    Sistem berbasis kecerdasan buatan (*AI Clinical Decision Support System*) yang mengintegrasikan 
+    **Machine Learning Terkalibrasi (Random Forest Tuned, AUC 0.898)**, **Explainable AI (SHAP)**, dan **Medical AI Advisor** 
     guna membantu klinisi serta pasien mendapatkan estimasi risiko dini yang transparan dan dapat dipertanggungjawabkan.
     """)
     st.divider()
@@ -218,7 +145,7 @@ def page_home():
            Terintegrasi dengan Google Gemini AI dan dilengkapi protokol medis berbasis aturan (*graceful fallback*) yang aktif otomatis saat koneksi offline.
         """)
         st.info("👉 **Mulai Skrining**: Gunakan menu **'Form Skrining Pasien'** di sidebar untuk mencoba analisis dengan kasus contoh 1-klik.")
-        
+
     with col_img:
         image_loaded = False
         if os.path.exists(IMAGE_PATH):
@@ -235,10 +162,10 @@ def page_home():
 # --- PAGE 2: FORM PREDIKSI PASIEN ---
 def page_prediksi():
     render_system_banner()
-    
-    st.title("🩺 Form Skrining Klinis & Prediksi Risiko")
+
+    st.title("🩺 Form Skrining Klinis & Stratifikasi Risiko")
     st.markdown("Isi rekam medis pasien di bawah ini atau gunakan **Preset Kasus Cepat** untuk mengisi profil pasien contoh secara instan.")
-    
+
     if model is None or scaler is None:
         st.error("Artefak model tidak ditemukan. Pastikan file `heart_disease_artifacts.pkl` tersedia.")
         return
@@ -254,7 +181,7 @@ def page_prediksi():
     # --- QUICK PRESET BUTTONS (1-CLICK RECRUITER DEMO) ---
     st.subheader("⚡ Quick Case Presets (Contoh Kasus 1-Klik)")
     p_col1, p_col2, p_col3 = st.columns(3)
-    
+
     with p_col1:
         if st.button("🚨 Kasus A: Risiko Tinggi", use_container_width=True, help="Pasien pria lansia dengan gejala angina tipikal dan depresi ST tinggi"):
             st.session_state.profile_input = {
@@ -305,7 +232,7 @@ def page_prediksi():
             st.markdown("#### 👤 1. Profil Demografi")
             current_age = st.session_state.profile_input['age']
             age = st.slider('Usia Pasien (age)', 29, 77, current_age, help="Usia pasien dalam tahun.")
-            
+
             current_sex = st.session_state.profile_input['sex']
             sex_idx = list(sex_options.keys()).index(current_sex) if current_sex in sex_options else 0
             sex = st.radio('Jenis Kelamin (sex)', list(sex_options.keys()), index=sex_idx, horizontal=True)
@@ -350,7 +277,7 @@ def page_prediksi():
             exang_options[exang], ca_options[ca], thal_options[thal],
             sex_options[sex], age
         ]
-        
+
         with st.spinner('Mengevaluasi parameter klinis dengan Random Forest model...'):
             time.sleep(0.3)
             prediction = predict_heart_disease(input_data)
@@ -387,33 +314,7 @@ def page_prediksi():
         col_gauge, col_verdict = st.columns([1.2, 1])
 
         with col_gauge:
-            # Interactive Speedometer Gauge (Plotly)
-            gauge_color = "#DC2626" if probability >= 0.5 else "#059669"
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=probability * 100,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "Tingkat Probabilitas Risiko Kardiovaskular", 'font': {'size': 16, 'color': '#1E293B'}},
-                number={'suffix': "%", 'font': {'size': 38, 'color': gauge_color, 'weight': 'bold'}},
-                gauge={
-                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#94A3B8"},
-                    'bar': {'color': gauge_color, 'thickness': 0.28},
-                    'bgcolor': "white",
-                    'borderwidth': 1,
-                    'bordercolor': "#E2E8F0",
-                    'steps': [
-                        {'range': [0, 40], 'color': '#D1FAE5'},
-                        {'range': [40, 60], 'color': '#FEF3C7'},
-                        {'range': [60, 100], 'color': '#FEE2E2'}
-                    ],
-                    'threshold': {
-                        'line': {'color': "#DC2626", 'width': 4},
-                        'thickness': 0.75,
-                        'value': 50
-                    }
-                }
-            ))
-            fig_gauge.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
+            fig_gauge = plot_risk_gauge(probability)
             st.plotly_chart(fig_gauge, use_container_width=True)
 
         with col_verdict:
@@ -437,7 +338,7 @@ def page_prediksi():
                     </p>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
             st.markdown(f"**Keyakinan Model:** `{max(probability, 1 - probability) * 100:.1f}%` • **Algoritma:** `Random Forest (Tuned)`")
 
         # --- EXPLAINABLE AI (SHAP) PLOTLY CHART ---
@@ -446,59 +347,16 @@ def page_prediksi():
         st.write("Grafik interaktif ini menguraikan seberapa besar setiap parameter medis mendorong (**merah / meningkatkan risiko**) atau melindungi (**hijau / menurunkan risiko**) hasil diagnosis pasien ini.")
 
         try:
-            explainer = shap.TreeExplainer(model)
-            df_input = pd.DataFrame([input_data], columns=feature_names)
-            std_data = scaler.transform(df_input)
-            shap_values = explainer.shap_values(std_data)
-
-            if isinstance(shap_values, list):
-                sv = shap_values[1][0]
-            elif hasattr(shap_values, "shape") and len(shap_values.shape) == 3:
-                sv = shap_values[0, :, 1]
-            else:
-                sv = shap_values[0]
-            sv = np.ravel(sv)
-
-            readable_feature_names = [
-                'Nyeri Dada (cp)', 'Detak Jantung Max (thalach)', 'Kemiringan ST (slope)',
-                'Depresi ST EKG (oldpeak)', 'Angina Olahraga (exang)', 'Pembuluh Tersumbat (ca)',
-                'Thallium Scan (thal)', 'Gender (sex)', 'Usia (age)'
-            ]
-
-            df_shap_plot = pd.DataFrame({
-                'Fitur': readable_feature_names,
-                'SHAP_Value': sv,
-                'Dampak': ['Meningkatkan Risiko' if v > 0 else 'Menurunkan Risiko' for v in sv],
-                'Nilai_Abs': np.abs(sv)
-            }).sort_values(by='SHAP_Value', ascending=True)
-
-            color_map = {'Meningkatkan Risiko': '#DC2626', 'Menurunkan Risiko': '#059669'}
-
-            fig_shap = px.bar(
-                df_shap_plot,
-                x='SHAP_Value',
-                y='Fitur',
-                color='Dampak',
-                color_discrete_map=color_map,
-                orientation='h',
-                title="Atribusi Faktor Risiko Pasien (Shapley Additive exPlanations)",
-                labels={'SHAP_Value': 'Pengaruh terhadap Log-Odds Risiko', 'Fitur': 'Parameter Klinis'}
-            )
-            fig_shap.update_layout(
-                height=380,
-                xaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=True, zerolinecolor='#64748B'),
-                yaxis=dict(title=''),
-                margin=dict(l=20, r=20, t=40, b=20),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-            )
-            st.plotly_chart(fig_shap, use_container_width=True)
+            fig_shap = plot_shap_summary(model, scaler, input_data, feature_names)
+            if fig_shap:
+                st.plotly_chart(fig_shap, use_container_width=True)
         except Exception as e:
             st.warning(f"Visualisasi SHAP tidak dapat dimuat: {e}")
 
         # --- AI ADVISOR & CLINICAL GUIDELINE ---
         st.markdown("---")
         st.subheader("💡 Rekomendasi Medis & Konsultasi Gaya Hidup")
-        
+
         with st.spinner("Menghubungkan ke Clinical AI Advisor..."):
             rec_text = cached_lifestyle_recommendation(
                 pred_res['patient_summary']['Usia'],
@@ -515,34 +373,7 @@ def page_prediksi():
 
         # --- EXPORT REPORT BUTTON ---
         st.markdown("<br>", unsafe_allow_html=True)
-        report_content = f"""====================================================
-RINGKASAN SKRINING RISIKO PENYAKIT JANTUNG (CDSS)
-====================================================
-Waktu Skrining     : {pred_res['timestamp']}
-Hasil Diagnosis    : {'Risiko Tinggi Penyakit Jantung' if prediction == 1 else 'Risiko Rendah / Normal'}
-Estimasi Probabilitas : {probability * 100:.2f}%
-Model Keyakinan    : {max(probability, 1 - probability) * 100:.2f}% (Random Forest Tuned)
-
-DATA REKAM MEDIS PASIEN:
-----------------------------------------------------
-- Usia             : {pred_res['patient_summary']['Usia']} tahun
-- Jenis Kelamin    : {pred_res['patient_summary']['Gender']}
-- Karakter Nyeri   : {pred_res['patient_summary']['Nyeri Dada']}
-- Detak Jantung Max: {pred_res['patient_summary']['Detak Max']}
-- Depresi ST EKG   : {pred_res['patient_summary']['Depresi ST']}
-- Angina Olahraga  : {pred_res['patient_summary']['Angina Olahraga']}
-- Pembuluh Tersumbat: {pred_res['patient_summary']['Pembuluh Tersumbat']}
-- Thallium Scan    : {pred_res['patient_summary']['Thallium Scan']}
-
-SARAN MEDIS & GAYA HIDUP:
-----------------------------------------------------
-{rec_text}
-
-Disclaimer:
-Laporan ini dihasilkan oleh sistem Clinical Decision Support untuk edukasi dan skrining awal. 
-Bukan pengganti diagnosis dokter spesialis jantung.
-====================================================
-"""
+        report_content = generate_clinical_report(pred_res, prediction, probability, rec_text)
         st.download_button(
             label="📄 Unduh Ringkasan Laporan Klinis Pasien (.txt)",
             data=report_content,
@@ -555,7 +386,7 @@ Bukan pengganti diagnosis dokter spesialis jantung.
 # --- PAGE 3: EKSPLORASI DATA & EVALUASI MODEL ---
 def page_eda_dan_evaluasi():
     render_system_banner()
-    
+
     st.title("📊 Eksplorasi Data (EDA) & Evaluasi Multi-Model")
     st.markdown("Transparansi metrik evaluasi model, perbandingan 4 keluarga algoritma di MLflow, dan eksplorasi data klinis interaktif.")
     st.divider()
@@ -572,21 +403,12 @@ def page_eda_dan_evaluasi():
         Evaluasi mencakup 4 keluarga algoritma yang dilacak secara otomatis di **MLflow**:
         *Linear Model* (Logistic Regression), *Tree Model* (Decision Tree), *Neural Network* (MLP), dan *Ensemble Learning* (Random Forest Tuned).
         """)
-        
+
         if artifacts and "model_comparison" in artifacts:
             df_comp = artifacts["model_comparison"]
             st.dataframe(df_comp, use_container_width=True, hide_index=True)
-            
-            # Interactive Bar Chart of Accuracies
-            fig_comp = px.bar(
-                df_comp,
-                x="Model",
-                y=["Accuracy", "Recall", "AUC-ROC"],
-                barmode="group",
-                title="Perbandingan Metrik Utama antar Algoritma",
-                color_discrete_sequence=['#1E3A8A', '#059669', '#DC2626']
-            )
-            fig_comp.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
+
+            fig_comp = plot_model_comparison(df_comp)
             st.plotly_chart(fig_comp, use_container_width=True)
 
         st.divider()
@@ -597,61 +419,17 @@ def page_eda_dan_evaluasi():
         if artifacts and "test_eval" in artifacts:
             eval_data = artifacts["test_eval"]
             cm = eval_data["confusion_matrix"]
-            
+
             with col_cm:
                 st.markdown("**Confusion Matrix (Holdout Test Set)**")
-                # Plotly Heatmap for Confusion Matrix
-                z = cm
-                x_labels = ['Prediksi Sehat (0)', 'Prediksi Sakit (1)']
-                y_labels = ['Aktual Sehat (0)', 'Aktual Sakit (1)']
-                
-                # Annotations with counts and percentages
-                total_samples = np.sum(cm)
-                annotations = []
-                for i, row in enumerate(cm):
-                    for j, val in enumerate(row):
-                        pct = (val / total_samples) * 100
-                        annotations.append(dict(
-                            x=x_labels[j], y=y_labels[i],
-                            text=f"<b>{val} Pasien</b><br>({pct:.1f}%)",
-                            showarrow=False,
-                            font=dict(color="white" if val > np.max(cm)/2 else "#1E293B", size=14)
-                        ))
-
-                fig_cm = go.Figure(data=go.Heatmap(
-                    z=z, x=x_labels, y=y_labels,
-                    colorscale='Blues', showscale=False
-                ))
-                fig_cm.update_layout(
-                    annotations=annotations,
-                    height=320,
-                    margin=dict(l=20, r=20, t=30, b=20)
-                )
+                fig_cm = plot_confusion_matrix(cm)
                 st.plotly_chart(fig_cm, use_container_width=True)
                 st.caption("📌 **Prioritas Klinis**: Menekan False Negative (pasien sakit lolos) adalah target primer untuk mencegah serangan jantung tanpa penanganan.")
 
             with col_roc:
-                st.markdown(f"**Receiver Operating Characteristic (ROC Curve) - AUC: {eval_data.get('roc_auc', 0.898):.3f}**")
-                fig_roc = go.Figure()
-                fig_roc.add_trace(go.Scatter(
-                    x=eval_data["fpr"], y=eval_data["tpr"],
-                    mode='lines',
-                    line=dict(color='#1E3A8A', width=3),
-                    name=f"Random Forest (AUC = {eval_data.get('roc_auc', 0.898):.3f})"
-                ))
-                fig_roc.add_trace(go.Scatter(
-                    x=[0, 1], y=[0, 1],
-                    mode='lines',
-                    line=dict(color='#94A3B8', dash='dash'),
-                    name="Random Chance"
-                ))
-                fig_roc.update_layout(
-                    height=320,
-                    xaxis=dict(title="False Positive Rate (1 - Spesifisitas)", showgrid=True),
-                    yaxis=dict(title="True Positive Rate (Sensitivitas)", showgrid=True),
-                    margin=dict(l=20, r=20, t=30, b=20),
-                    legend=dict(x=0.55, y=0.1)
-                )
+                roc_val = eval_data.get('roc_auc', 0.898)
+                st.markdown(f"**Receiver Operating Characteristic (ROC Curve) - AUC: {roc_val:.3f}**")
+                fig_roc = plot_roc_curve(eval_data["fpr"], eval_data["tpr"], roc_val)
                 st.plotly_chart(fig_roc, use_container_width=True)
                 st.caption("Nilai AUC mendekati 0.90 menunjukkan kemampuan diskriminasi kelas yang luar biasa.")
 
@@ -662,20 +440,10 @@ def page_eda_dan_evaluasi():
         - **Gini Importance (MDI)**: Menghitung seberapa efektif pemisahan node pohon keputusan di seluruh ensemble Random Forest.
         - **SHAP Summary**: Menghitung kontribusi marjinal berbasis teori permainan (*cooperative game theory*).
         """)
-        
+
         if artifacts and "feature_importance" in artifacts:
             df_feat = artifacts["feature_importance"]
-            fig_fi = px.bar(
-                df_feat,
-                x="Importance",
-                y="Feature",
-                orientation='h',
-                color="Importance",
-                color_continuous_scale="Viridis",
-                title="Random Forest Gini Feature Importance",
-                labels={'Importance': 'Tingkat Kepentingan Relatif (0-1)', 'Feature': 'Parameter Medis'}
-            )
-            fig_fi.update_layout(height=380, yaxis=dict(autorange="reversed"), margin=dict(l=20, r=20, t=40, b=20))
+            fig_fi = plot_feature_importance(df_feat)
             st.plotly_chart(fig_fi, use_container_width=True)
 
             st.markdown("""
@@ -695,33 +463,13 @@ def page_eda_dan_evaluasi():
 
             with eda_col1:
                 st.markdown("**Distribusi Usia vs Detak Jantung Maksimal (`thalach`)**")
-                fig_scatter = px.scatter(
-                    df_raw,
-                    x="age",
-                    y="thalach",
-                    color="Status",
-                    color_discrete_map={'Normal / Sehat (0)': '#059669', 'Penyakit Jantung (1)': '#DC2626'},
-                    labels={'age': 'Usia (Tahun)', 'thalach': 'Detak Jantung Maksimal (bpm)'},
-                    hover_data=['cp', 'oldpeak']
-                )
-                fig_scatter.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
+                fig_scatter = plot_eda_scatter(df_raw)
                 st.plotly_chart(fig_scatter, use_container_width=True)
                 st.caption("Kelompok usia 40-60 dengan detak jantung maksimal tinggi cenderung memiliki prevalensi terdiagnosis lebih tinggi saat tes stres.")
 
             with eda_col2:
                 st.markdown("**Proporsi Penyakit Berdasarkan Nyeri Dada Saat Olahraga (`exang`)**")
-                df_exang = df_raw.groupby(['exang', 'Status']).size().reset_index(name='Jumlah Pasien')
-                df_exang['Exercise Angina'] = df_exang['exang'].map({0: 'Tidak Ada Angina Olahraga', 1: 'Ada Angina Olahraga'})
-
-                fig_bar = px.bar(
-                    df_exang,
-                    x="Exercise Angina",
-                    y="Jumlah Pasien",
-                    color="Status",
-                    barmode="group",
-                    color_discrete_map={'Normal / Sehat (0)': '#059669', 'Penyakit Jantung (1)': '#DC2626'}
-                )
-                fig_bar.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
+                fig_bar = plot_eda_bar(df_raw)
                 st.plotly_chart(fig_bar, use_container_width=True)
                 st.caption("Adanya angina yang dipicu aktivitas fisik berkolerasi signifikan dengan abnormalitas koroner.")
         except Exception as e:
@@ -731,7 +479,7 @@ def page_eda_dan_evaluasi():
 # --- PAGE 4: METODOLOGI & ARSITEKTUR ---
 def page_detail_proyek():
     render_system_banner()
-    
+
     st.title("📚 Metodologi & Arsitektur Sistem")
     st.markdown("Dokumentasi teknis pipeline data science, pemodelan, dan pertimbangan keselamatan medis.")
     st.divider()
@@ -765,7 +513,7 @@ def page_detail_proyek():
 # --- PAGE 5: TENTANG PENGEMBANG ---
 def page_tentang_saya():
     render_system_banner()
-    
+
     st.title("👤 Profil Pengembang")
     st.markdown("""
     Halo! Saya **Arfi Adi Nugroho**, mahasiswa Data Science dari Politeknik Elektronika Negeri Surabaya (PENS).
