@@ -40,6 +40,8 @@ def get_rule_based_fallback(patient_data: Dict[str, Any], prediction_result: int
     
     if prediction_result == 1:
         return (
+            "> 📋 **Protokol Pedoman Klinis (Mode Cadangan)**  \n"
+            "> *Koneksi AI sedang offline atau mengalami antrean. Rekomendasi di bawah ini disajikan otomatis berbasis pedoman klinis kardiovaskular standar AHA/ESC.*\n\n"
             "### Rekomendasi Gaya Hidup & Manajemen Risiko\n\n"
             f"*Catatan: Rekomendasi berbasis protokol klinis (Pasien {sex}, Usia {age} tahun - Kategori Risiko Tinggi).*\n\n"
             "1. **Evaluasi Kardiovaskular Lanjutan**: Segera jadwalkan konsultasi dengan dokter spesialis jantung "
@@ -52,11 +54,13 @@ def get_rule_based_fallback(patient_data: Dict[str, Any], prediction_result: int
         )
     else:
         return (
+            "> 📋 **Protokol Pedoman Klinis (Mode Cadangan)**  \n"
+            "> *Koneksi AI sedang offline atau mengalami antrean. Rekomendasi di bawah ini disajikan otomatis berbasis pedoman klinis kardiovaskular standar AHA/ESC.*\n\n"
             "### Rekomendasi Gaya Hidup Preventif\n\n"
             f"*Catatan: Rekomendasi berbasis protokol preventif (Pasien {sex}, Usia {age} tahun - Kategori Risiko Rendah).*\n\n"
             "1. **Pertahankan Kebugaran Fisik**: Lakukan aktivitas fisik intensitas sedang minimal 150 menit per minggu "
             "(seperti jalan cepat, bersepeda, atau berenang).\n"
-            "2. **Nutrisi Seimbang & Kontrol Berat Badan**: Jaga berat badan ideal, konsumsi buah, sayur, kacang-kacangan, "
+            "2. **Nutrisi Seimbang & Kontrol Berat Badan**: Jaga berat bandan ideal, konsumsi buah, sayur, kacang-kacangan, "
             "dan batasi konsumsi gula tambahan serta makanan olahan.\n"
             "3. **Pemeriksaan Kesehatan Rutin**: Lakukan medical check-up tahunan secara berkala untuk memantau tekanan darah, "
             "profil lipid (kolesterol), dan gula darah puasa.\n\n"
@@ -65,7 +69,7 @@ def get_rule_based_fallback(patient_data: Dict[str, Any], prediction_result: int
 
 def get_lifestyle_recommendation(patient_data: Dict[str, Any], prediction_result: int) -> str:
     """
-    Calls the Google Gemini REST API directly with graceful degradation to clinical rules.
+    Calls Google Gemini REST API with candidate model failover and graceful degradation to clinical rules.
     """
     ensure_env_loaded()
     api_key = os.getenv("GEMINI_API_KEY")
@@ -92,7 +96,7 @@ def get_lifestyle_recommendation(patient_data: Dict[str, Any], prediction_result
     Tambahkan disclaimer singkat di akhir bahwa ini bukan nasihat medis pengganti dokter.
     """
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    candidate_models = ["gemini-3.8-flash", "gemini-flash-latest"]
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [
@@ -104,15 +108,23 @@ def get_lifestyle_recommendation(patient_data: Dict[str, Any], prediction_result
         ]
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
-        if response.status_code == 200:
-            result = response.json()
-            candidates = result.get("candidates", [])
-            if candidates and "content" in candidates[0] and "parts" in candidates[0]["content"]:
-                return candidates[0]["content"]["parts"][0]["text"]
-        logger.warning("Gemini API call returned status %s: %s. Falling back to rule-based recommendation.", response.status_code, response.text)
-    except Exception as e:
-        logger.warning("Error calling Gemini API: %s. Falling back to rule-based recommendation.", e)
-        
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=8)
+            if response.status_code == 200:
+                result = response.json()
+                candidates = result.get("candidates", [])
+                if candidates and "content" in candidates[0] and "parts" in candidates[0]["content"]:
+                    ai_text = candidates[0]["content"]["parts"][0]["text"].strip()
+                    badge_header = (
+                        f"> ✨ **Rekomendasi Personal dari AI (Google Gemini)**  \n"
+                        f"> *Dibuat secara dinamis oleh model AI ({model_name}) disesuaikan dengan parameter rekam medis spesifik pasien.*\n\n"
+                    )
+                    return badge_header + ai_text
+            logger.warning("Gemini model %s returned status %s: %s", model_name, response.status_code, response.text[:150])
+        except Exception as e:
+            logger.warning("Error calling Gemini model %s: %s", model_name, e)
+            
+    logger.info("All Gemini model candidates failed or unavailable. Falling back to rule-based recommendation.")
     return get_rule_based_fallback(patient_data, prediction_result)
