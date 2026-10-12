@@ -1,33 +1,25 @@
-# Requirements esensial untuk proyek Heart Disease dan Deployment Streamlit
+# Requirements untuk Heart Disease Prediction & Streamlit Deployment
 
-# Data Manipulation & Analysis
-numpy==2.1.3
-pandas==2.2.3
+# Data Manipulation & Machine Learning
+numpy>=2.0.0
+pandas>=2.2.0
+scikit-learn>=1.6.0
+joblib>=1.4.0
 
-# Machine Learning & Imbalanced Data Handling
-scikit-learn==1.7.2
-imbalanced-learn==0.14.0
-joblib==1.4.2
+# Deployment Framework & Visualisasi
+streamlit>=1.40.0
+matplotlib>=3.9.0
+seaborn>=0.13.0
+plotly>=6.0.0
 
-# Deployment Framework (Streamlit)
-streamlit==1.44.1
+# Image & Networking
+pillow>=10.4.0
+requests>=2.31.0
 
-# Visualisasi (Sering digunakan dan kompatibel dengan Streamlit)
-matplotlib==3.10.0
-seaborn==0.13.2
-plotly==6.1.1
-altair==5.5.0
-
-# Dependencies lain yang sering dibutuhkan oleh paket di atas
-scipy==1.15.2
-packaging==24.2
-pillow==11.1.0
-requests==2.32.3
+# Explainable AI & GenAI
+shap>=0.46.0
+python-dotenv>=1.0.0
 
 # MLOps & Testing
-mlflow==3.12.0
-pytest==9.0.3
-
-# XAI & GenAI
-shap==0.52.0
-python-dotenv==1.2.1
+mlflow>=2.15.0
+pytest>=8.0.0
