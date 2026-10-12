@@ -13,8 +13,9 @@ html, body, [class*="css"] {
 
 /* Card Elevation & Container Styles */
 .clinical-card {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
+    background: var(--secondary-background-color, rgba(128, 128, 128, 0.05));
+    color: inherit;
+    border: 1px solid rgba(128, 128, 128, 0.2);
     border-radius: 16px;
     padding: 24px;
     margin-bottom: 20px;
@@ -24,7 +25,7 @@ html, body, [class*="css"] {
 
 .clinical-card:hover {
     box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
-    border-color: #CBD5E1;
+    border-color: rgba(128, 128, 128, 0.4);
 }
 
 /* Top System Health Banner */
@@ -52,33 +53,33 @@ html, body, [class*="css"] {
 }
 
 .badge-danger {
-    background-color: #FEE2E2;
-    color: #991B1B;
-    border: 1px solid #FCA5A5;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #EF4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .badge-success {
-    background-color: #D1FAE5;
-    color: #065F46;
-    border: 1px solid #6EE7B7;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .badge-info {
-    background-color: #E0F2FE;
-    color: #075985;
-    border: 1px solid #7DD3FC;
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #3B82F6;
+    border: 1px solid rgba(59, 130, 246, 0.35);
 }
 
 .badge-warning {
-    background-color: #FEF3C7;
-    color: #92400E;
-    border: 1px solid #FCD34D;
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 /* Action Callout Box */
 .action-callout {
     border-left: 4px solid #3B82F6;
-    background-color: #EFF6FF;
+    background-color: rgba(59, 130, 246, 0.1);
     border-radius: 0 12px 12px 0;
     padding: 16px 20px;
     margin: 16px 0;

@@ -321,9 +321,9 @@ def page_prediksi():
             st.markdown("<br>", unsafe_allow_html=True)
             if prediction == 1:
                 st.markdown("""
-                <div style="border-left: 5px solid #DC2626; background-color: #FEF2F2; padding: 18px; border-radius: 8px;">
-                    <h3 style="color: #991B1B; margin: 0 0 8px 0;">💔 Indikasi Risiko Tinggi Kardiovaskular</h3>
-                    <p style="color: #7F1D1D; margin: 0; font-size: 0.95rem;">
+                <div style="border-left: 5px solid #DC2626; background-color: rgba(220, 38, 38, 0.12); padding: 18px; border-radius: 8px;">
+                    <h3 style="color: #EF4444; margin: 0 0 8px 0;">💔 Indikasi Risiko Tinggi Kardiovaskular</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">
                         Model mengidentifikasi pola biomarker klinis yang mengindikasikan adanya iskemia atau abnormalitas perfusi arteri koroner. 
                         Disarankan untuk melakukan pemeriksaan lanjutan (Treadmill Test / Angiografi).
                     </p>
@@ -331,9 +331,9 @@ def page_prediksi():
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                <div style="border-left: 5px solid #059669; background-color: #ECFDF5; padding: 18px; border-radius: 8px;">
-                    <h3 style="color: #065F46; margin: 0 0 8px 0;">❤️ Estimasi Risiko Rendah / Normal</h3>
-                    <p style="color: #064E3B; margin: 0; font-size: 0.95rem;">
+                <div style="border-left: 5px solid #059669; background-color: rgba(5, 150, 105, 0.12); padding: 18px; border-radius: 8px;">
+                    <h3 style="color: #10B981; margin: 0 0 8px 0;">❤️ Estimasi Risiko Rendah / Normal</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">
                         Parameter klinis pasien berada dalam rentang toleransi fisiologis normal. Pertahankan pola hidup sehat dan kontrol rutin berkala.
                     </p>
                 </div>
@@ -365,11 +365,8 @@ def page_prediksi():
                 pred_res['patient_summary']['Nyeri Dada'],
                 prediction
             )
-            st.markdown(f"""
-            <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 22px;">
-                {rec_text}
-            </div>
-            """, unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown(rec_text)
 
         # --- EXPORT REPORT BUTTON ---
         st.markdown("<br>", unsafe_allow_html=True)

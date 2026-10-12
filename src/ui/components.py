@@ -22,18 +22,18 @@ def plot_risk_gauge(probability: float) -> go.Figure:
         mode="gauge+number",
         value=probability * 100,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': "Tingkat Probabilitas Risiko Kardiovaskular", 'font': {'size': 16, 'color': '#1E293B'}},
+        title={'text': "Tingkat Probabilitas Risiko Kardiovaskular", 'font': {'size': 16}},
         number={'suffix': "%", 'font': {'size': 38, 'color': gauge_color, 'weight': 'bold'}},
         gauge={
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#94A3B8"},
             'bar': {'color': gauge_color, 'thickness': 0.28},
-            'bgcolor': "white",
+            'bgcolor': "rgba(0,0,0,0)",
             'borderwidth': 1,
-            'bordercolor': "#E2E8F0",
+            'bordercolor': "rgba(128,128,128,0.2)",
             'steps': [
-                {'range': [0, 40], 'color': '#D1FAE5'},
-                {'range': [40, 60], 'color': '#FEF3C7'},
-                {'range': [60, 100], 'color': '#FEE2E2'}
+                {'range': [0, 40], 'color': 'rgba(16, 185, 129, 0.2)'},
+                {'range': [40, 60], 'color': 'rgba(245, 158, 11, 0.2)'},
+                {'range': [60, 100], 'color': 'rgba(239, 68, 68, 0.2)'}
             ],
             'threshold': {
                 'line': {'color': "#DC2626", 'width': 4},
@@ -42,7 +42,7 @@ def plot_risk_gauge(probability: float) -> go.Figure:
             }
         }
     ))
-    fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(height=280, margin=dict(l=20, r=20, t=40, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
 
 
@@ -91,7 +91,9 @@ def plot_shap_summary(model, scaler, input_data: List, feature_names: List[str])
     )
     fig.update_layout(
         height=380,
-        xaxis=dict(showgrid=True, gridcolor='#E2E8F0', zeroline=True, zerolinecolor='#64748B'),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=True, gridcolor='rgba(128,128,128,0.2)', zeroline=True, zerolinecolor='rgba(128,128,128,0.4)'),
         yaxis=dict(title=''),
         margin=dict(l=20, r=20, t=40, b=20),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
@@ -109,7 +111,12 @@ def plot_model_comparison(df_comp: pd.DataFrame) -> go.Figure:
         title="Perbandingan Metrik Utama antar Algoritma (MLflow Tracking)",
         color_discrete_sequence=['#1E3A8A', '#059669', '#DC2626']
     )
-    fig.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(
+        height=350,
+        margin=dict(l=20, r=20, t=40, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
     return fig
 
 
@@ -140,7 +147,9 @@ def plot_confusion_matrix(cm: np.ndarray) -> go.Figure:
     fig.update_layout(
         annotations=annotations,
         height=320,
-        margin=dict(l=20, r=20, t=30, b=20)
+        margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
@@ -151,7 +160,7 @@ def plot_roc_curve(fpr, tpr, roc_auc: float) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=fpr, y=tpr,
         mode='lines',
-        line=dict(color='#1E3A8A', width=3),
+        line=dict(color='#3B82F6', width=3),
         name=f"Random Forest (AUC = {roc_auc:.3f})"
     ))
     fig.add_trace(go.Scatter(
@@ -162,10 +171,12 @@ def plot_roc_curve(fpr, tpr, roc_auc: float) -> go.Figure:
     ))
     fig.update_layout(
         height=320,
-        xaxis=dict(title="False Positive Rate (1 - Spesifisitas)", showgrid=True),
-        yaxis=dict(title="True Positive Rate (Sensitivitas)", showgrid=True),
+        xaxis=dict(title="False Positive Rate (1 - Spesifisitas)", showgrid=True, gridcolor='rgba(128,128,128,0.2)'),
+        yaxis=dict(title="True Positive Rate (Sensitivitas)", showgrid=True, gridcolor='rgba(128,128,128,0.2)'),
         margin=dict(l=20, r=20, t=30, b=20),
-        legend=dict(x=0.55, y=0.1)
+        legend=dict(x=0.55, y=0.1),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
@@ -182,7 +193,13 @@ def plot_feature_importance(df_feat: pd.DataFrame) -> go.Figure:
         title="Random Forest Gini Feature Importance (MDI)",
         labels={'Importance': 'Tingkat Kepentingan Relatif (0-1)', 'Feature': 'Parameter Medis'}
     )
-    fig.update_layout(height=380, yaxis=dict(autorange="reversed"), margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(
+        height=380,
+        yaxis=dict(autorange="reversed"),
+        margin=dict(l=20, r=20, t=40, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
     return fig
 
 
@@ -197,7 +214,12 @@ def plot_eda_scatter(df_raw: pd.DataFrame) -> go.Figure:
         labels={'age': 'Usia (Tahun)', 'thalach': 'Detak Jantung Maksimal (bpm)'},
         hover_data=['cp', 'oldpeak']
     )
-    fig.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
+    fig.update_layout(
+        height=350,
+        margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
     return fig
 
 
@@ -214,5 +236,10 @@ def plot_eda_bar(df_raw: pd.DataFrame) -> go.Figure:
         barmode="group",
         color_discrete_map={'Normal / Sehat (0)': '#059669', 'Penyakit Jantung (1)': '#DC2626'}
     )
-    fig.update_layout(height=350, margin=dict(l=20, r=20, t=30, b=20))
+    fig.update_layout(
+        height=350,
+        margin=dict(l=20, r=20, t=30, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
     return fig
