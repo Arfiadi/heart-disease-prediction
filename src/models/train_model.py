@@ -1,77 +1,156 @@
 import os
 import pickle
+import logging
+import numpy as np
+import pandas as pd
 import mlflow
 import mlflow.sklearn
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, confusion_matrix, roc_curve
+)
+
 from src.data.make_dataset import load_and_clean_data, select_features
 from src.features.build_features import split_data, scale_features
 
-def train_model(data_path: str, model_save_path: str):
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+
+def train_and_compare_models(data_path: str = "heart.csv", model_save_path: str = "heart_disease_artifacts.pkl"):
     """
-    Train a Random Forest model, evaluate it, and log metrics to MLflow.
+    Train and evaluate multiple models (Logistic Regression, Decision Tree, Random Forest)
+    using Stratified 5-Fold Cross-Validation and holdout test set.
+    Logs all experiments to MLflow and serializes the best model along with rich evaluation artifacts.
     """
-    # 1. Load & Prep Data
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(f"Data file not found at {data_path}")
+
+    logger.info("Loading and preprocessing data from %s...", data_path)
     df = load_and_clean_data(data_path)
     df = select_features(df)
     
-    # 2. Split & Scale
-    X_train, X_test, y_train, y_test = split_data(df, test_size=0.2, random_state=42)
+    feature_names = [c for c in df.columns if c != 'target']
+    
+    # Holdout Split & Scaling
+    X_train, X_test, y_train, y_test = split_data(df, target_col='target', test_size=0.2, random_state=42)
     X_train_scaled, X_test_scaled, scaler = scale_features(X_train, X_test)
     
-    # MLflow tracking
-    mlflow.set_experiment("Heart_Disease_Prediction")
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     
-    with mlflow.start_run():
-        # Hyperparameters (bisa disesuaikan dari hasil GridSearchCV sebelumnya)
-        params = {
-            "n_estimators": 100,
-            "max_depth": 5,
-            "random_state": 42
+    candidate_models = {
+        "Logistic_Regression": {
+            "model": LogisticRegression(max_iter=1000, random_state=42),
+            "params": {"solver": "lbfgs", "max_iter": 1000}
+        },
+        "Decision_Tree": {
+            "model": DecisionTreeClassifier(max_depth=4, random_state=42),
+            "params": {"max_depth": 4, "criterion": "gini"}
+        },
+        "Random_Forest_Tuned": {
+            "model": RandomForestClassifier(n_estimators=100, max_depth=5, min_samples_split=4, random_state=42),
+            "params": {"n_estimators": 100, "max_depth": 5, "min_samples_split": 4}
         }
-        mlflow.log_params(params)
+    }
+    
+    mlflow.set_experiment("Heart_Disease_Prediction")
+    comparison_records = []
+    trained_instances = {}
+    
+    for name, config in candidate_models.items():
+        clf = config["model"]
+        params = config["params"]
         
-        # 3. Train Model
-        model = RandomForestClassifier(**params)
-        model.fit(X_train_scaled, y_train)
+        # 5-Fold Stratified Cross-Validation on training set
+        cv_acc = cross_val_score(clf, X_train_scaled, y_train, cv=cv, scoring="accuracy")
+        cv_auc = cross_val_score(clf, X_train_scaled, y_train, cv=cv, scoring="roc_auc")
         
-        # 4. Evaluate
-        y_pred = model.predict(X_test_scaled)
-        y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
+        # Train on full train set
+        clf.fit(X_train_scaled, y_train)
+        trained_instances[name] = clf
         
-        accuracy = accuracy_score(y_test, y_pred)
-        precision = precision_score(y_test, y_pred)
-        recall = recall_score(y_test, y_pred)
+        # Evaluate on test set
+        y_pred = clf.predict(X_test_scaled)
+        y_prob = clf.predict_proba(X_test_scaled)[:, 1]
+        
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred)
+        rec = recall_score(y_test, y_pred)
         f1 = f1_score(y_test, y_pred)
-        auc = roc_auc_score(y_test, y_pred_proba)
+        auc = roc_auc_score(y_test, y_prob)
         
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.log_metric("precision", precision)
-        mlflow.log_metric("recall", recall)
-        mlflow.log_metric("f1_score", f1)
-        mlflow.log_metric("auc_roc", auc)
+        comparison_records.append({
+            "Model": name.replace("_", " "),
+            "Accuracy": round(acc, 4),
+            "Precision": round(prec, 4),
+            "Recall": round(rec, 4),
+            "F1-Score": round(f1, 4),
+            "AUC-ROC": round(auc, 4),
+            "CV_Acc_Mean": round(cv_acc.mean(), 4),
+            "CV_Acc_Std": round(cv_acc.std(), 4),
+            "CV_AUC_Mean": round(cv_auc.mean(), 4)
+        })
         
-        # Log model to MLflow
-        mlflow.sklearn.log_model(model, "random_forest_model")
-        
-        # 5. Save Artifacts locally for Streamlit
-        artifacts = {
-            'best_model': model,
-            'scaler': scaler
-        }
-        with open(model_save_path, 'wb') as f:
-            pickle.dump(artifacts, f)
+        with mlflow.start_run(run_name=name):
+            mlflow.log_params(params)
+            mlflow.log_metric("test_accuracy", acc)
+            mlflow.log_metric("test_precision", prec)
+            mlflow.log_metric("test_recall", rec)
+            mlflow.log_metric("test_f1", f1)
+            mlflow.log_metric("test_auc_roc", auc)
+            mlflow.log_metric("cv_accuracy_mean", cv_acc.mean())
+            mlflow.log_metric("cv_accuracy_std", cv_acc.std())
+            mlflow.log_metric("cv_auc_mean", cv_auc.mean())
+            mlflow.sklearn.log_model(clf, artifact_path=f"model_{name.lower()}")
             
-        print(f"Model trained successfully.")
-        print(f"Accuracy: {accuracy:.4f}, AUC-ROC: {auc:.4f}")
-        print(f"Artifacts saved to {model_save_path}")
+        logger.info("[%s] Test Acc: %.4f | AUC: %.4f | CV Acc: %.4f (±%.4f)",
+                    name, acc, auc, cv_acc.mean(), cv_acc.std())
+
+    df_comparison = pd.DataFrame(comparison_records)
+    logger.info("Model Comparison Summary:\n%s", df_comparison.to_string(index=False))
+    
+    # Best model selection (Random Forest Tuned)
+    best_clf = trained_instances["Random_Forest_Tuned"]
+    y_pred_best = best_clf.predict(X_test_scaled)
+    y_prob_best = best_clf.predict_proba(X_test_scaled)[:, 1]
+    
+    cm = confusion_matrix(y_test, y_pred_best)
+    fpr, tpr, _ = roc_curve(y_test, y_prob_best)
+    
+    # Feature importance from Random Forest
+    rf_feat_imp = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": best_clf.feature_importances_
+    }).sort_values(by="Importance", ascending=False).reset_index(drop=True)
+    
+    artifacts = {
+        "best_model": best_clf,
+        "scaler": scaler,
+        "feature_names": feature_names,
+        "model_comparison": df_comparison,
+        "feature_importance": rf_feat_imp,
+        "test_eval": {
+            "y_test": y_test.values,
+            "y_pred": y_pred_best,
+            "y_prob": y_prob_best,
+            "confusion_matrix": cm,
+            "fpr": fpr,
+            "tpr": tpr,
+            "roc_auc": roc_auc_score(y_test, y_prob_best)
+        }
+    }
+    
+    with open(model_save_path, "wb") as f:
+        pickle.dump(artifacts, f)
+        
+    logger.info("Artifacts saved successfully to %s", model_save_path)
+    return artifacts
+
 
 if __name__ == "__main__":
-    # Ensure working directory is correct when running as script
-    # Run from root directory of project
-    data_path = "heart.csv"
-    model_save_path = "heart_disease_artifacts.pkl"
-    if os.path.exists(data_path):
-        train_model(data_path, model_save_path)
-    else:
-        print(f"Data not found at {data_path}. Please run this script from the project root.")
+    train_and_compare_models()
