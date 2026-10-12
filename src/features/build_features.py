@@ -18,10 +18,12 @@ def split_data(df: pd.DataFrame, target_col: str = 'target', test_size: float = 
 def create_model_pipeline(classifier: Any, scaler: Optional[Any] = None) -> Pipeline:
     """
     Constructs an atomic Scikit-Learn Pipeline combining feature scaling and estimator.
-    Prevents data leakage during cross-validation.
+    Prevents data leakage during cross-validation and preserves feature names.
     """
     if scaler is None:
         scaler = StandardScaler()
+    if hasattr(scaler, "set_output"):
+        scaler.set_output(transform="pandas")
     return Pipeline([
         ('scaler', scaler),
         ('classifier', classifier)

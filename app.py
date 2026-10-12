@@ -76,12 +76,18 @@ pipeline = artifacts.get('pipeline') or artifacts.get('best_pipeline') if artifa
 model = artifacts.get('best_model') if artifacts else None
 scaler = artifacts.get('scaler') if artifacts else None
 
-# Extract steps from pipeline if needed
+# Extract steps from pipeline if needed and preserve feature names
 if pipeline is not None:
     if model is None and hasattr(pipeline, "named_steps") and "classifier" in pipeline.named_steps:
         model = pipeline.named_steps["classifier"]
     if scaler is None and hasattr(pipeline, "named_steps") and "scaler" in pipeline.named_steps:
         scaler = pipeline.named_steps["scaler"]
+    if hasattr(pipeline, "named_steps") and "scaler" in pipeline.named_steps:
+        if hasattr(pipeline.named_steps["scaler"], "set_output"):
+            pipeline.named_steps["scaler"].set_output(transform="pandas")
+
+if scaler is not None and hasattr(scaler, "set_output"):
+    scaler.set_output(transform="pandas")
 
 feature_names = artifacts.get('feature_names', [
     'cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'
@@ -95,7 +101,7 @@ def predict_heart_disease(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
     if pipeline is not None:
         return int(pipeline.predict(df_input)[0])
-    scaled_data = scaler.transform(df_input)
+    scaled_data = pd.DataFrame(scaler.transform(df_input), columns=feature_names)
     prediction = model.predict(scaled_data)
     return int(prediction[0])
 
@@ -104,7 +110,7 @@ def predict_heart_disease_proba(input_data):
     df_input = pd.DataFrame([input_data], columns=feature_names)
     if pipeline is not None:
         return float(pipeline.predict_proba(df_input)[0, 1])
-    scaled_data = scaler.transform(df_input)
+    scaled_data = pd.DataFrame(scaler.transform(df_input), columns=feature_names)
     return float(model.predict_proba(scaled_data)[0, 1])
 
 

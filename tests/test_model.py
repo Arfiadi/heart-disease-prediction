@@ -67,9 +67,9 @@ def test_prediction_output_format():
     model = artifacts["best_model"]
     scaler = artifacts["scaler"]
     
-    # Sample input: [cp, thalach, slope, oldpeak, exang, ca, thal, sex, age]
-    sample_input = np.array([[2, 150, 1, 1.2, 0, 0, 2, 1, 55]])
-    scaled_input = scaler.transform(sample_input)
+    feature_names = artifacts.get("feature_names", ['cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'])
+    sample_df = pd.DataFrame([[2, 150, 1, 1.2, 0, 0, 2, 1, 55]], columns=feature_names)
+    scaled_input = pd.DataFrame(scaler.transform(sample_df), columns=feature_names)
     prediction = model.predict(scaled_input)
     
     assert prediction.shape == (1,), "Prediction shape should be (1,)"
@@ -88,8 +88,9 @@ def test_model_performance_threshold():
         artifacts = pickle.load(f)
     model = artifacts["best_model"]
     scaler = artifacts["scaler"]
+    feature_names = artifacts.get("feature_names", list(X_test.columns))
     
-    X_test_scaled = scaler.transform(X_test)
+    X_test_scaled = pd.DataFrame(scaler.transform(X_test), columns=feature_names)
     y_pred = model.predict(X_test_scaled)
     y_pred_proba = model.predict_proba(X_test_scaled)[:, 1]
     
@@ -108,6 +109,7 @@ def test_edge_cases_input():
         artifacts = pickle.load(f)
     model = artifacts["best_model"]
     scaler = artifacts["scaler"]
+    feature_names = artifacts.get("feature_names", ['cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'])
     
     # Extreme cases: minimums and maximums
     edge_cases = [
@@ -115,7 +117,8 @@ def test_edge_cases_input():
         [3, 205, 2, 6.2, 1, 3, 3, 1, 77],  # Elderly male, high values
     ]
     for case in edge_cases:
-        scaled = scaler.transform([case])
+        case_df = pd.DataFrame([case], columns=feature_names)
+        scaled = pd.DataFrame(scaler.transform(case_df), columns=feature_names)
         pred = model.predict(scaled)
         assert pred[0] in [0, 1]
 

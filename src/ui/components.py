@@ -53,7 +53,8 @@ def plot_shap_summary(model, scaler, input_data: List, feature_names: List[str])
     """
     explainer = shap.TreeExplainer(model)
     df_input = pd.DataFrame([input_data], columns=feature_names)
-    std_data = scaler.transform(df_input)
+    scaled_raw = scaler.transform(df_input)
+    std_data = pd.DataFrame(scaled_raw, columns=feature_names)
     shap_values = explainer.shap_values(std_data)
 
     if isinstance(shap_values, list):

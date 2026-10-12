@@ -121,10 +121,16 @@ def get_lifestyle_recommendation(patient_data: Dict[str, Any], prediction_result
                         f"> ✨ **Rekomendasi Personal dari AI (Google Gemini)**  \n"
                         f"> *Dibuat secara dinamis oleh model AI ({model_name}) disesuaikan dengan parameter rekam medis spesifik pasien.*\n\n"
                     )
-                    return badge_header + ai_text
-            logger.warning("Gemini model %s returned status %s: %s", model_name, response.status_code, response.text[:150])
+            if response.status_code == 503:
+                logger.info("Gemini model %s is temporarily experiencing high traffic (HTTP 503). Proceeding to fallback.", model_name)
+            elif response.status_code == 429:
+                logger.info("Gemini model %s rate limit reached (HTTP 429). Proceeding to fallback.", model_name)
+            else:
+                logger.warning("Gemini model %s returned status %s. Proceeding to fallback.", model_name, response.status_code)
+        except requests.exceptions.Timeout:
+            logger.info("Gemini model %s request timed out. Proceeding to fallback.", model_name)
         except Exception as e:
             logger.warning("Error calling Gemini model %s: %s", model_name, e)
             
-    logger.info("All Gemini model candidates failed or unavailable. Falling back to rule-based recommendation.")
+    logger.info("All Gemini model candidates unavailable. Activated clinical guideline fallback.")
     return get_rule_based_fallback(patient_data, prediction_result)
