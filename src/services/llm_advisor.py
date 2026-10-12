@@ -6,8 +6,18 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 def ensure_env_loaded():
-    """Lazily load .env without module-level side-effects."""
+    """Lazily load API keys from environment, Streamlit secrets, or local .env file."""
     if not os.getenv("GEMINI_API_KEY"):
+        # 1. Check Streamlit Cloud secrets
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
+                os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+                return
+        except Exception:
+            pass
+
+        # 2. Check python-dotenv
         try:
             from dotenv import load_dotenv
             load_dotenv()

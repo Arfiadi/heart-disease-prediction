@@ -11,6 +11,12 @@ import shap
 
 from src.services.llm_advisor import get_lifestyle_recommendation
 
+# --- Base Directory & File Paths (Streamlit Cloud Safe) ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ARTIFACTS_PATH = os.path.join(BASE_DIR, 'heart_disease_artifacts.pkl')
+DATA_PATH = os.path.join(BASE_DIR, 'heart.csv')
+IMAGE_PATH = os.path.join(BASE_DIR, 'heart.jpg')
+
 # --- Page Configuration ---
 st.set_page_config(
     page_title="Heart Disease Prediction System",
@@ -23,26 +29,40 @@ st.set_page_config(
 @st.cache_resource
 def load_artifacts():
     """
-    Load serialized model, scaler, and evaluation metrics.
+    Load serialized model, scaler, and evaluation metrics safely with fallback paths.
     """
-    try:
-        with open('heart_disease_artifacts.pkl', 'rb') as file:
-            return pickle.load(file)
-    except FileNotFoundError:
-        return None
+    path_candidates = [
+        ARTIFACTS_PATH,
+        'heart_disease_artifacts.pkl',
+        os.path.join(os.getcwd(), 'heart_disease_artifacts.pkl')
+    ]
+    for p in path_candidates:
+        if os.path.exists(p):
+            try:
+                with open(p, 'rb') as file:
+                    return pickle.load(file)
+            except Exception as e:
+                st.error(f"Gagal memuat artefak model dari {p}: {e}")
+                return None
+    return None
 
 artifacts = load_artifacts()
 model = artifacts['best_model'] if artifacts else None
 scaler = artifacts['scaler'] if artifacts else None
+feature_names = artifacts.get('feature_names', [
+    'cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'
+]) if artifacts else [
+    'cp', 'thalach', 'slope', 'oldpeak', 'exang', 'ca', 'thal', 'sex', 'age'
+]
 
-# Helper prediction function
+# Helper prediction functions
 def predict_heart_disease(input_data):
     """
     Predict heart disease (0 or 1) given 9 medical features.
     Features order: cp, thalach, slope, oldpeak, exang, ca, thal, sex, age
     """
-    input_array = np.asarray(input_data).reshape(1, -1)
-    scaled_data = scaler.transform(input_array)
+    df_input = pd.DataFrame([input_data], columns=feature_names)
+    scaled_data = scaler.transform(df_input)
     prediction = model.predict(scaled_data)
     return int(prediction[0])
 
@@ -50,9 +70,9 @@ def predict_heart_disease_proba(input_data):
     """
     Predict probability of heart disease given 9 medical features.
     """
-    input_array = np.asarray(input_data).reshape(1, -1)
-    scaled_data = scaler.transform(input_array)
-    return model.predict_proba(scaled_data)[0, 1]
+    df_input = pd.DataFrame([input_data], columns=feature_names)
+    scaled_data = scaler.transform(df_input)
+    return float(model.predict_proba(scaled_data)[0, 1])
 
 @st.cache_data(show_spinner=False)
 def cached_lifestyle_recommendation(age: int, sex: int, thalach: int, cp: str, prediction: int) -> str:
@@ -92,10 +112,15 @@ def page_home():
         st.info("💡 **Gunakan menu navigasi di sidebar** untuk mencoba formulir prediksi atau melihat analisis eksplorasi data (EDA).")
         
     with col2:
-        try:
-            image = Image.open("heart.jpg")
-            st.image(image, caption="Sistem Diagnosis & Skrining Kardiovaskular", use_container_width=True)
-        except Exception:
+        image_loaded = False
+        if os.path.exists(IMAGE_PATH):
+            try:
+                img = Image.open(IMAGE_PATH)
+                st.image(img, caption="Sistem Diagnosis & Skrining Kardiovaskular", use_container_width=True)
+                image_loaded = True
+            except Exception:
+                pass
+        if not image_loaded:
             st.image("https://images.unsplash.com/photo-1628348068343-c6a848d2b6dd?w=800", caption="Cardiovascular Care", use_container_width=True)
 
 
@@ -105,7 +130,7 @@ def page_prediksi():
     st.divider()
 
     if model is None or scaler is None:
-        st.error("Artefak model tidak ditemukan. Pastikan file `heart_disease_artifacts.pkl` tersedia.")
+        st.error("Artefak model tidak ditemukan. Pastikan file `heart_disease_artifacts.pkl` tersedia di repositori.")
         return
 
     with st.container():
@@ -146,7 +171,7 @@ def page_prediksi():
         ]
         
         with st.spinner('Menganalisis profil data medis pasien...'):
-            time.sleep(0.5)
+            time.sleep(0.3)
             prediction = predict_heart_disease(input_data)
             probability = predict_heart_disease_proba(input_data)
 
@@ -173,24 +198,25 @@ def page_prediksi():
         
         try:
             explainer = shap.TreeExplainer(model)
-            std_data = scaler.transform(np.asarray(input_data).reshape(1, -1))
+            df_input = pd.DataFrame([input_data], columns=feature_names)
+            std_data = scaler.transform(df_input)
             shap_values = explainer.shap_values(std_data)
             
             if isinstance(shap_values, list):
                 sv = shap_values[1][0]
-            elif len(shap_values.shape) == 3:
+            elif hasattr(shap_values, "shape") and len(shap_values.shape) == 3:
                 sv = shap_values[0, :, 1]
             else:
                 sv = shap_values[0]
             sv = np.ravel(sv)
                 
-            feature_names = ['cp (Nyeri Dada)', 'thalach (Detak Max)', 'slope (ST Slope)', 
-                             'oldpeak (ST Dep)', 'exang (Angina)', 'ca (Pembuluh)', 
-                             'thal (Thalassemia)', 'sex (Gender)', 'age (Usia)']
+            readable_feature_names = ['cp (Nyeri Dada)', 'thalach (Detak Max)', 'slope (ST Slope)', 
+                                      'oldpeak (ST Dep)', 'exang (Angina)', 'ca (Pembuluh)', 
+                                      'thal (Thalassemia)', 'sex (Gender)', 'age (Usia)']
             
             fig, ax = plt.subplots(figsize=(9, 4.2))
             sorted_idx = np.argsort(sv)
-            sorted_features = [feature_names[i] for i in sorted_idx]
+            sorted_features = [readable_feature_names[i] for i in sorted_idx]
             sorted_sv = sv[sorted_idx]
             colors = ['#e63946' if v > 0 else '#2a9d8f' for v in sorted_sv]
             
@@ -200,6 +226,7 @@ def page_prediksi():
             ax.grid(axis='x', linestyle='--', alpha=0.5)
             plt.tight_layout()
             st.pyplot(fig)
+            plt.close(fig)
         except Exception as e:
             st.warning(f"Visualisasi SHAP tidak dapat dirender: {e}")
 
@@ -251,6 +278,7 @@ def page_eda_dan_evaluasi():
                 ax_cm.set_xlabel('Hasil Prediksi Model')
                 plt.tight_layout()
                 st.pyplot(fig_cm)
+                plt.close(fig_cm)
                 st.caption("📌 **Catatan Klinis**: Dalam domain kardiovaskular, meminimalkan **False Negative** (pasien sakit yang lolos diagnosis) adalah prioritas tertinggi guna mencegah mortalitas.")
 
             with col_roc:
@@ -266,6 +294,7 @@ def page_eda_dan_evaluasi():
                 ax_roc.grid(True, linestyle=':', alpha=0.6)
                 plt.tight_layout()
                 st.pyplot(fig_roc)
+                plt.close(fig_roc)
                 st.caption("Nilai AUC mendekati 0.90 menunjukkan kemampuan diskriminasi kelas yang sangat baik.")
 
     with tab2:
@@ -279,12 +308,13 @@ def page_eda_dan_evaluasi():
         if artifacts and "feature_importance" in artifacts:
             df_feat = artifacts["feature_importance"]
             fig_fi, ax_fi = plt.subplots(figsize=(8, 4))
-            sns.barplot(data=df_feat, x="Importance", y="Feature", palette="viridis", ax=ax_fi)
+            sns.barplot(data=df_feat, x="Importance", y="Feature", hue="Feature", palette="viridis", legend=False, ax=ax_fi)
             ax_fi.set_title("Random Forest Feature Importance (Gini Importance)", fontsize=11, fontweight='bold')
             ax_fi.set_xlabel("Tingkat Kepentingan Relatif")
             ax_fi.grid(axis='x', linestyle='--', alpha=0.5)
             plt.tight_layout()
             st.pyplot(fig_fi)
+            plt.close(fig_fi)
             
             st.markdown("""
             **Temuan Utama**:
@@ -297,7 +327,8 @@ def page_eda_dan_evaluasi():
         st.markdown("Pola distribusi fitur klinis pada dataset Heart Disease:")
 
         try:
-            df_raw = pd.read_csv("heart.csv").drop_duplicates()
+            csv_path = DATA_PATH if os.path.exists(DATA_PATH) else "heart.csv"
+            df_raw = pd.read_csv(csv_path).drop_duplicates()
             
             eda_col1, eda_col2 = st.columns(2)
             with eda_col1:
@@ -311,6 +342,7 @@ def page_eda_dan_evaluasi():
                 ax_eda1.grid(True, linestyle=':', alpha=0.5)
                 plt.tight_layout()
                 st.pyplot(fig_eda1)
+                plt.close(fig_eda1)
                 st.caption("Pasien dengan penyakit jantung cenderung memiliki detak jantung maksimal yang lebih tinggi pada kelompok usianya.")
 
             with eda_col2:
@@ -318,6 +350,7 @@ def page_eda_dan_evaluasi():
                 fig_eda2, ax_eda2 = plt.subplots(figsize=(6, 4))
                 sns.countplot(data=df_raw, x="exang", hue="target",
                               palette={0: "#2a9d8f", 1: "#e63946"}, ax=ax_eda2)
+                ax_eda2.set_xticks([0, 1])
                 ax_eda2.set_xticklabels(["Tidak Ada Angina (0)", "Ada Angina Olahraga (1)"])
                 ax_eda2.set_xlabel("Exercise Induced Angina")
                 ax_eda2.set_ylabel("Jumlah Pasien")
@@ -325,6 +358,7 @@ def page_eda_dan_evaluasi():
                 ax_eda2.grid(axis='y', linestyle=':', alpha=0.5)
                 plt.tight_layout()
                 st.pyplot(fig_eda2)
+                plt.close(fig_eda2)
                 st.caption("Adanya nyeri dada yang dipicu aktivitas fisik berkolerasi signifikan dengan abnormalitas koroner.")
         except Exception as e:
             st.warning(f"Visualisasi EDA tidak dapat dimuat: {e}")
